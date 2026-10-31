@@ -16,3 +16,13 @@ secrets/*
 # エージェントのローカル設定
 .claude/settings.local.json
 .codex/
+
+# ベンダ配布物（CD 由来。再配布しない）
+vendor/
+
+# ビルド生成物
+tools/winproxy/*.dll
+tools/winprobe/*.exe
+*.exe
+*.o
+*.dll
