@@ -312,6 +312,36 @@ def cmd_spectrum(args) -> int:
     return 0
 
 
+def cmd_calib_rate(args) -> int:
+    from . import calib
+
+    if args.show:
+        cal = calib.load()
+        if not cal:
+            print(f"校正値がありません（{calib.CONF_PATH}）")
+            return 1
+        for label, e in cal.items():
+            print(f"  {label:5s}: 周期 {e['period_samples']:7.1f} smp → "
+                  f"実効 {e['rate_hz']/1e3:8.2f} kS/s "
+                  f"（ラベル {e['label_hz']/1e3:7.1f}, ×{e['ratio']:.1f}）")
+        return 0
+
+    t = Transport.open(timeout=args.timeout)
+    s = Scope(t, verbose=args.verbose, calibrate_rates=False)
+    try:
+        s.read_calibration()
+        print("内蔵 1kHz 標準矩形波（BNC 間の金属ピン）にプローブを当てた状態で測定します")
+        cal = calib.calibrate(s, reference_hz=args.reference)
+    finally:
+        t.close()
+    if not cal:
+        print("測定できませんでした。プローブを内蔵矩形波に当てて、レンジを 50mV/div に。")
+        return 2
+    path = calib.save(cal)
+    print(f"保存: {path}")
+    return 0
+
+
 def cmd_monitor(args) -> int:
     """ターミナルで数値をライブ表示する（プローブの当たり確認用）。"""
     import time as _time
@@ -423,6 +453,12 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--plot", action="store_true",
                     help="matplotlib で表示（入っていれば）")
     sp.set_defaults(func=cmd_capture)
+
+    sp = sub.add_parser("calib-rate", help="内蔵 1kHz 矩形波で実効サンプルレートを校正")
+    sp.add_argument("--show", action="store_true", help="保存済みの値を表示")
+    sp.add_argument("--reference", type=float, default=1000.0,
+                    help="内蔵矩形波の周波数 [Hz]（既定 1000）")
+    sp.set_defaults(func=cmd_calib_rate)
 
     sp = sub.add_parser("spectrum", help="低周波のピークを調べる（ハム・校正用）")
     sp.add_argument("--rate", choices=sorted(C.SAMPLE_RATES), default="240k")

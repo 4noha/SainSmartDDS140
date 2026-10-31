@@ -106,9 +106,17 @@ class Frame:
 
 
 class Scope:
-    def __init__(self, transport: Transport, verbose: bool = False):
+    def __init__(self, transport: Transport, verbose: bool = False,
+                 calibrate_rates: bool = True):
         self.t = transport
         self.verbose = verbose
+        self.use_rate_calibration = calibrate_rates
+        self.rate_label: str | None = None
+        try:
+            from .calib import load as _load_rates
+            self.rate_cal = _load_rates() if calibrate_rates else {}
+        except Exception:
+            self.rate_cal = {}
         self.cal = Calibration()
         self.ctrl1 = 0x00      # cmd 36
         self.ctrl0 = 0x00      # cmd 148
@@ -135,7 +143,16 @@ class Scope:
                   ch2_range: str = "1V", ac_ch1: bool = False,
                   ac_ch2: bool = False) -> None:
         r = C.SAMPLE_RATES[rate]
+        self.rate_label = rate
         self.rate_hz = r.hz
+        if self.use_rate_calibration:
+            from .calib import rate_for
+            eff = rate_for(rate, r.hz, self.rate_cal)
+            if eff != r.hz:
+                self.rate_hz = eff
+                if self.verbose:
+                    print(f"  rate {rate}: 校正値を使用 {eff/1e3:.2f} kS/s "
+                          f"(ラベル {r.hz/1e3:.0f} kS/s)")
 
         # cmd 148: サンプルレート（下位ニブル）+ CH1 AC 結合（bit4）
         self.ctrl0 = (self.ctrl0 & 0xF0) | r.code
