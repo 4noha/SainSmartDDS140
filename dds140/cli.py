@@ -215,6 +215,82 @@ def _plot(f: Frame, ch1: bool, ch2: bool) -> None:
     plt.show()
 
 
+def cmd_inputcheck(args) -> int:
+    """入力に信号が来ているかを、レンジごとの AC 成分で判定する。
+
+    本物の信号はレンジを変えても電圧（AC RMS）が変わらない。
+    ADC のノイズやドリフトはレンジ（= ゲイン）に比例して変化する。
+    """
+    import statistics
+
+    t = Transport.open(timeout=args.timeout)
+    s = Scope(t, verbose=args.verbose)
+    try:
+        s.read_calibration()
+        print("レンジごとの AC 成分（100 MS/s, 32k サンプル）")
+        print(f"{'range':>7s}  {'CH1 rms':>9s} {'CH1 pp':>8s} "
+              f"{'CH2 rms':>9s} {'CH2 pp':>8s}")
+        rows = []
+        for rng in ("2V", "1V", "500mV", "200mV", "100mV", "50mV"):
+            s.configure(rate="100M", ch1_range=rng, ch2_range=rng)
+            f = s.capture(total_bytes=65536, poll_timeout=15, skip=64)
+            out = []
+            for vals in (f.ch1_volts(), f.ch2_volts()):
+                m = sum(vals) / len(vals)
+                ac = [v - m for v in vals]
+                rms = (sum(v * v for v in ac) / len(ac)) ** 0.5
+                out.append((rms, max(vals) - min(vals)))
+            rows.append((rng, out))
+            print(f"{rng:>7s}  {out[0][0]:9.4f} {out[0][1]:8.4f} "
+                  f"{out[1][0]:9.4f} {out[1][1]:8.4f}")
+        print()
+        for ch in (0, 1):
+            name = f"CH{ch + 1}"
+            rms = [r[1][ch][0] for r in rows]
+            big = max(rms)
+            small = min(rms)
+            if big < 0.005:
+                verdict = "信号なし（ノイズレベル）"
+            elif big > 0 and (big - small) / big < 0.25:
+                verdict = f"信号あり（レンジを変えても AC RMS {big:.3f} V で一定）"
+            else:
+                verdict = (f"信号は見えない（レンジで AC RMS が {small:.3f}→{big:.3f} V と"
+                           " 変わる = ノイズ/ドリフト）")
+            print(f"  {name}: {verdict}")
+        if args.spectrum:
+            print()
+            print("CH1 の低周波スペクトル（100 MS/s, 10 ms）")
+            f = s.capture(total_bytes=2097152, poll_timeout=15, skip=64)
+            v = f.ch1_volts()
+            k = 100
+            x = [sum(v[i:i + k]) / k for i in range(0, len(v) - k, k)]
+            fs = f.rate_hz / k
+            n = len(x)
+            m = sum(x) / n
+            x = [a - m for a in x]
+
+            def goertzel(fr):
+                import math
+                w = 2 * math.pi * fr / fs
+                c = 2 * math.cos(w)
+                s1 = s2 = 0.0
+                for val in x:
+                    s0 = val + c * s1 - s2
+                    s2 = s1
+                    s1 = s0
+                return (s1 * s1 + s2 * s2 - c * s1 * s2) ** 0.5
+
+            peaks = []
+            for fr in range(50, 3000, 50):
+                peaks.append((goertzel(fr), fr))
+            peaks.sort(reverse=True)
+            for mag, fr in peaks[:5]:
+                print(f"    {fr:5d} Hz  相対 {mag:.1f}")
+    finally:
+        t.close()
+    return 0
+
+
 def cmd_record(args) -> int:
     from . import record as R
 
@@ -286,6 +362,12 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--plot", action="store_true",
                     help="matplotlib で表示（入っていれば）")
     sp.set_defaults(func=cmd_capture)
+
+    sp = sub.add_parser("input-check",
+                        help="入力に信号が来ているか調べる（レンジごとの AC 成分）")
+    sp.add_argument("--spectrum", action="store_true",
+                    help="CH1 の低周波スペクトルも出す")
+    sp.set_defaults(func=cmd_inputcheck)
 
     sp = sub.add_parser("record", help="信号を記録してファイルに保存")
     sp.add_argument("--capacity", action="store_true",
