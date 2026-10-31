@@ -4,10 +4,11 @@ DDS140 は 2026 年時点でメーカー（SainSmart）の製品ページが終�
 「販売終了」になっている。手元で動かし続けるために、**マニュアルと配布ソフトを
 このリポジトリに保全**した。取得日: 2026-10-31。
 
-## 1. マニュアル（Git 管理・再配布可）
+## 1. マニュアル（**リポジトリには含めない**）
 
-`docs/manual/` に PDF と、`pdftotext` で起こしたテキストを置いてある
-（テキストは grep 用。正確な図表は PDF を見ること）。
+ベンダ（SainSmart）のマニュアルは著作物なので、このリポジトリでは**再配布しない**。
+手元では `vendor/manual/`（Git 管理外）に置いてあり、要点は `docs/manual-notes.md` に
+まとめてある。必要なときは下記の公開元から取得する。
 
 | ファイル | 出典 | SHA-256 | ページ |
 |---|---|---|---|
@@ -15,6 +16,7 @@ DDS140 は 2026 年時点でメーカー（SainSmart）の製品ページが終�
 | `SainSmart DDS_Manual_Software.pdf` | 同上「マニュアル(ソフトウェア)」 | `a01b858…84337` | 27 |
 
 - 商品ページ: <https://akizukidenshi.com/catalog/g/g110159/>
+- 手元のコピー: `vendor/manual/`（PDF と `pdftotext` のテキスト、Git 管理外）
 - 取得元 URL:
   - <https://akizukidenshi.com/goodsaffix/DDS%20Series_Manual_Hardware-W.pdf>
   - <https://akizukidenshi.com/goodsaffix/SainSmart%20DDS_Manual_Software.pdf>

@@ -73,11 +73,11 @@ macOS 実機での確認だけが残っている（デバイスは Windows 機�
 
 ## 一次資料（ローカルに保全済み）
 
-**マニュアルと配布ソフトは `docs/manual/` と `vendor/` に保全してある**
-（`docs/sources.md` に出典・SHA-256、`tools/verify_archive.sh` で検証）。
-`vendor/` は Git 管理外なので消えると復元できない。
+**マニュアルと配布ソフトは `vendor/` に保全してある**（Git 管理外）。
+著作物なのでリポジトリには含めない。出典・SHA-256 は `docs/sources.md`、
+検証は `tools/verify_archive.sh`。`vendor/` は消えると復元できない。
 
-- ハード/ソフトのマニュアル: `docs/manual/*.pdf`（秋月電子 g110159 で公開、原本は CD 同梱）
+- ハード/ソフトのマニュアル: `vendor/manual/*.pdf`（秋月電子 g110159 で公開、原本は CD 同梱）
 - ベンダ CD 全体: `vendor/101-10-144.rar` + 展開済みの `vendor/CD/`
 - ベンダアプリは .NET。`vendor/CD/DDS140/DDS140.exe` を逆コンパイルすればコマンド列が読める。
 - `vendor/CD/Demo/VCSource/` に**ベンダ提供の VC ソース**がある（publicDLL の使い方）。

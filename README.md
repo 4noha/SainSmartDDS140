@@ -129,8 +129,7 @@ matplotlib ウィンドウ（`--plot`）。
 | `dds140/web/` | UI の HTML / CSS / JS（canvas 描画） |
 | `dds140/selftest.py` | 実機でレート・レンジを一通り試す（開発用） |
 | `docs/sources.md` | **マニュアル・配布ソフトの保全記録**（出典・ハッシュ） |
-| `docs/manual-notes.md` | マニュアルの要点（仕様・レンジ別ノイズ・記録機能） |
-| `docs/manual/` | ハード/ソフトのマニュアル（PDF + テキスト） |
+| `docs/manual-notes.md` | マニュアルの要点（仕様・レンジ別ノイズ・記録機能。原本は再配布しない） |
 | `docs/protocol.md` | **プロトコルの全容（実測ベース）** |
 | `docs/recording.md` | 記録の実測上限と落とし穴 |
 | `docs/hardware.md` | 部品・USB 構成 |
@@ -155,10 +154,15 @@ python3 -m dds140.selftest                # 実機が必要（レート・レン
 - USB はバスパワー 500mA。ハブ経由で不安定なら直挿し。
 - 波形には測定対象の信号が入る。`captures/` と `vendor/` は Git 管理外。
 
+## ライセンス
+
+MIT（`LICENSE`）。ただし `docs/` に書いた仕様・プロトコルの記述はこのプロジェクトの
+成果物で、ベンダのマニュアル本文や配布バイナリは含まない（再配布していない）。
+
 ## 参考
 
 - 秋月電子の商品ページ（販売終了）: <https://akizukidenshi.com/catalog/g/g110159/>
-- マニュアルと配布ソフトの保全: `docs/sources.md`（`tools/verify_archive.sh` で検証）
+- マニュアルと配布ソフトの出典: `docs/sources.md`（ベンダ物は再配布せず、手元の `vendor/` のみ）
 - sigrok: <https://sigrok.org/wiki/SainSmart_DDS140>
 - lsusb -v 生ログ: <https://sigrok.org/wiki/SainSmart_DDS140/Info>
 - 既存の RE: <https://github.com/SamantazFox/dds140-reverse-engineering>
