@@ -215,6 +215,33 @@ def _plot(f: Frame, ch1: bool, ch2: bool) -> None:
     plt.show()
 
 
+def cmd_record(args) -> int:
+    from . import record as R
+
+    if args.capacity:
+        print("1 フレームで連続記録できる長さ（実測の上限 40 MB）:")
+        print(R.describe_capacity())
+        return 0
+
+    t = Transport.open(timeout=args.timeout)
+    s = Scope(t, verbose=args.verbose)
+    try:
+        s.read_calibration()
+        s.configure(rate=args.rate, ch1_range=args.ch1, ch2_range=args.ch2,
+                    ac_ch1=args.ac1, ac_ch2=args.ac2)
+        cfg = {"rate": args.rate, "skip": args.skip}
+        rec = R.record(s, out=args.out, seconds=args.seconds, samples=args.samples,
+                       frames=args.frames, cfg=cfg)
+    finally:
+        t.close()
+    print(rec.summary())
+    if args.csv:
+        csv_path = str(rec.path) + ".csv"
+        R.to_csv(rec.path, csv_path)
+        print(f"  CSV: {csv_path}")
+    return 0
+
+
 def cmd_ui(args) -> int:
     from .webui import serve
     return serve(port=args.port, demo=args.demo, open_browser=not args.no_open)
@@ -259,6 +286,24 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--plot", action="store_true",
                     help="matplotlib で表示（入っていれば）")
     sp.set_defaults(func=cmd_capture)
+
+    sp = sub.add_parser("record", help="信号を記録してファイルに保存")
+    sp.add_argument("--capacity", action="store_true",
+                    help="レートごとの 1 フレーム最大長を表示して終了")
+    sp.add_argument("--seconds", type=float, default=5.0,
+                    help="1 フレームの長さ（秒）。--samples があればそちら優先")
+    sp.add_argument("--samples", type=int, help="1ch あたりのサンプル数で指定")
+    sp.add_argument("--frames", type=int, default=1, help="フレーム数（間隔が空く）")
+    sp.add_argument("--rate", choices=sorted(C.SAMPLE_RATES), default="240k")
+    sp.add_argument("--ch1", choices=sorted(C.CH1_RANGES), default="1V")
+    sp.add_argument("--ch2", choices=sorted(C.CH2_RANGES), default="1V")
+    sp.add_argument("--ac1", action="store_true")
+    sp.add_argument("--ac2", action="store_true")
+    sp.add_argument("--skip", type=int, default=0,
+                    help="先頭の捨てサンプル数（記録では既定 0 = 連続性を保つ）")
+    sp.add_argument("-o", "--out", help="出力 .bin（メタは .bin.json）")
+    sp.add_argument("--csv", action="store_true", help="CSV も書き出す")
+    sp.set_defaults(func=cmd_record)
 
     sp = sub.add_parser("ui", help="ブラウザ UI を起動（依存なし）")
     sp.add_argument("--port", type=int, default=8765)

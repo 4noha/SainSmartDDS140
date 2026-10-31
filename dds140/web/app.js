@@ -50,6 +50,7 @@ async function init() {
   try { state.band = localStorage.getItem("dds140.band") !== "0"; } catch (_) {}
   $("band").checked = state.band;
   applyCfgToInputs();
+  updateCapacityHint();
   bindInputs();
   resize();
   window.addEventListener("resize", resize);
@@ -77,6 +78,7 @@ function applyCfgToInputs() {
 async function pushCfg(patch) {
   Object.assign(state.cfg, patch);
   applyCfgToInputs();
+  updateCapacityHint();
   await fetch("/api/config", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -101,6 +103,15 @@ function bindInputs() {
   $("singleBtn").onclick = () => pushCfg({ run: false });
   $("csvBtn").onclick = () => (window.location = "/api/export?kind=csv");
   $("svgBtn").onclick = () => (window.location = "/api/export?kind=svg");
+  $("rate").addEventListener("change", updateCapacityHint);
+  $("recBtn").onclick = async () => {
+    const seconds = Math.max(0.5, parseFloat($("recSeconds").value || "5"));
+    await fetch("/api/record", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ seconds }),
+    });
+  };
   $("band").onchange = (e) => {
     state.band = e.target.checked;
     try { localStorage.setItem("dds140.band", state.band ? "1" : "0"); } catch (_) {}
@@ -155,6 +166,46 @@ function updateStatus(st) {
     $("msg").textContent = `フレーム ${st.frames} 受信`;
   }
   $("fps").textContent = (st.fps || 0).toFixed(1) + " fps";
+  updateRecordStatus(st);
+}
+
+function updateCapacityHint() {
+  const meta = state.meta;
+  if (!meta || !meta.capacity) return;
+  const max = meta.capacity[$("rate").value];
+  const hint = $("recHint");
+  if (hint && max) {
+    hint.textContent = `このレートで 1 回に記録できるのは最大 ${max.toFixed(2)} 秒` +
+      `（${meta.max_mb} MB まで）`;
+  }
+}
+
+let lastRecordKey = null;
+function updateRecordStatus(st) {
+  const box = $("recStatus");
+  const btn = $("recBtn");
+  if (st.recording) {
+    btn.disabled = true;
+    box.innerHTML = `<span class="recording">● 記録中… ${st.record_seconds} 秒ぶん</span>`;
+    return;
+  }
+  btn.disabled = false;
+  const last = st.last_record;
+  if (!last) { box.textContent = ""; return; }
+  const key = last.path + "|" + (last.error || "");
+  if (key === lastRecordKey) return;
+  lastRecordKey = key;
+  if (last.error) {
+    box.innerHTML = `<span class="warn">記録に失敗: ${last.error}</span>`;
+    return;
+  }
+  const name = last.path.split("/").pop();
+  const rt = last.realtime || 0;
+  box.innerHTML =
+    `記録しました: ${last.samples.toLocaleString()} サンプル/ch<br>` +
+    `<a href="/api/download?name=${encodeURIComponent(name)}&format=bin">.bin</a> / ` +
+    `<a href="/api/download?name=${encodeURIComponent(name)}&format=csv">.csv</a><br>` +
+    (last.warning ? `<span class="warn">${last.warning}</span>` : `連続性 OK (×${rt.toFixed(2)})`);
 }
 
 function updateMeasurements(f) {

@@ -35,6 +35,8 @@ class Frame:
     cal: Calibration
     probe_ch1: float = 1.0
     probe_ch2: float = 1.0
+    poll_seconds: float = 0.0
+    read_seconds: float = 0.0
 
     # ---------------------------------------------------------------- 生データ
     @property
@@ -175,8 +177,9 @@ class Scope:
         # 取りこぼしが残っていると次フレームと混ざるので捨てる
         self.t.flush()
 
+        t_start = time.monotonic()
         self._send(C.CMD_START, 0)
-        deadline = time.monotonic() + poll_timeout
+        deadline = t_start + poll_timeout
         status = None
         while time.monotonic() < deadline:
             status = self.t.cmd(C.CMD_STATUS)
@@ -189,7 +192,9 @@ class Scope:
                 " サンプルレート設定かデバイス状態を確認"
             )
 
+        t_ready = time.monotonic()
         data = self.t.read_frame(total_bytes, timeout=timeout)
+        t_done = time.monotonic()
         if len(data) < total_bytes:
             raise IOError(f"読み出し不足: {len(data)} / {total_bytes} バイト")
 
@@ -203,6 +208,8 @@ class Scope:
             ch1_range=self.ch1_range,
             ch2_range=self.ch2_range,
             cal=self.cal,
+            poll_seconds=t_ready - t_start,
+            read_seconds=t_done - t_ready,
         )
 
     # --------------------------------------------------------------------- misc

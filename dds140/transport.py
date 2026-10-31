@@ -158,16 +158,31 @@ class Transport:
 
     def read_frame(self, total_bytes: int, chunk_bytes: int = CHUNK_BYTES,
                    timeout: int | None = None) -> bytes:
-        """EP 0x82 から total_bytes 読む。ベンダ GUI と同じく 32 KiB ずつに分ける。"""
+        """EP 0x82 から total_bytes 読む。ベンダ GUI と同じく 32 KiB ずつに分ける。
+
+        実機のクセ: 読み出し長が 32 KiB の倍数でないと、末尾の半端な要求で
+        `libusb: Overflow` になる（240k で実測）。そのため 32 KiB 単位に
+        切り上げて読み、余分は捨てる。
+        """
         timeout = timeout or self.timeout
+        padded = -(-int(total_bytes) // chunk_bytes) * chunk_bytes
         buf = bytearray()
-        while len(buf) < total_bytes:
-            want = min(chunk_bytes, total_bytes - len(buf))
-            got = self.dev.read(EP_DATA, want, timeout=timeout)
-            buf += bytes(got)
+        while len(buf) < padded:
+            want = min(chunk_bytes, padded - len(buf))
+            try:
+                got = self.dev.read(EP_DATA, want, timeout=timeout)
+            except usb.core.USBError as e:
+                # 取りこぼし（Overflow/Overrun）でも、読めた分は返す
+                self.reset_pipe()
+                if len(buf) >= total_bytes:
+                    break
+                raise IOError(
+                    f"読み出し失敗（{len(buf)}/{total_bytes} バイト受信）: {e}"
+                ) from e
             if not got:
                 break
-        return bytes(buf)
+            buf += bytes(got)
+        return bytes(buf[:total_bytes])
 
 
 def drain(seconds: float = 0.02, dev=None, ep=EP_DATA) -> int:

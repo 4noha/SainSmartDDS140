@@ -20,6 +20,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from . import const as C
+from . import record as REC
 from .scope import Frame, Scope
 from .transport import DeviceNotFound, Transport
 
@@ -226,9 +227,13 @@ class ScopeWorker(threading.Thread):
         self.frame_json: dict | None = None
         self.last_frame: Frame | None = None
         self.cal_json: dict | None = None
-        self.status = {"connected": False, "error": None, "frames": 0, "fps": 0.0}
+        self.status = {"connected": False, "error": None, "frames": 0, "fps": 0.0,
+                       "recording": False, "record_seconds": 0.0,
+                       "last_record": None}
         self._stop = threading.Event()
         self._source = DemoSource() if demo else None
+        self._transport: Transport | None = None
+        self._scope: Scope | None = None
         if self._source is not None:
             self._source.cfg = self.cfg
         self._keep_last: dict | None = None
@@ -239,6 +244,9 @@ class ScopeWorker(threading.Thread):
 
     def resync(self) -> None:
         self.cmds.put(("resync", None))
+
+    def start_record(self, seconds: float) -> None:
+        self.cmds.put(("record", float(seconds)))
 
     def stop(self) -> None:
         self._stop.set()
@@ -267,12 +275,20 @@ class ScopeWorker(threading.Thread):
                     elif kind == "resync":
                         if scope:
                             scope.configure(**self._scope_kwargs())
+                    elif kind == "record":
+                        self._pending_record = payload
                     elif kind == "stop":
                         raise SystemExit
             except queue.Empty:
                 pass
             except SystemExit:
                 break
+
+            if getattr(self, "_pending_record", None):
+                secs = self._pending_record
+                self._pending_record = None
+                self._do_record(secs)
+                continue
 
             if not self.cfg["run"] and self._keep_last is not None:
                 time.sleep(0.05)
@@ -289,6 +305,7 @@ class ScopeWorker(threading.Thread):
                         with self.lock:
                             self.cal_json = scope.cal.as_dict()
                         scope.configure(**self._scope_kwargs())
+                        self._transport, self._scope = transport, scope
                         self._set_status(connected=True, error=None)
                     else:
                         self._apply_pending(scope)
@@ -312,6 +329,7 @@ class ScopeWorker(threading.Thread):
                     except Exception:
                         pass
                 transport = scope = None
+                self._transport = self._scope = None
                 time.sleep(1.5)
                 continue
 
@@ -337,6 +355,53 @@ class ScopeWorker(threading.Thread):
                 transport.close()
             except Exception:
                 pass
+
+    def _do_record(self, seconds: float) -> None:
+        """記録する。ライブ表示の Transport があればそれを使い回す（二重 claim を避ける）。"""
+        with self.lock:
+            self.status.update(recording=True, record_seconds=seconds)
+        own_transport = None
+        try:
+            if self.demo:
+                time.sleep(min(seconds, 1.0))
+                path = Path("captures") / f"demo-{int(time.time())}.bin"
+                path.parent.mkdir(parents=True, exist_ok=True)
+                f = self._source.capture()
+                path.write_bytes(f.raw * max(1, int(seconds)))
+                info = {"path": str(path), "seconds": seconds, "samples": f.samples,
+                        "realtime": 1.0, "warning": None}
+            else:
+                scope = self._scope
+                if scope is None:
+                    own_transport = Transport.open(timeout=5000)
+                    scope = Scope(own_transport)
+                    scope.read_calibration()
+                    scope.configure(**self._scope_kwargs())
+                rec = REC.record(scope, seconds=seconds, cfg=dict(self.cfg),
+                                 out=Path("captures") /
+                                 f"ui-{time.strftime('%Y%m%d-%H%M%S')}.bin")
+                read = rec.read_seconds or rec.wall_seconds
+                rt = (rec.nominal_seconds / read) if read else 0.0
+                warnings = []
+                if rec.nominal_seconds < seconds * 0.9:
+                    warnings.append(f"サイズ上限（{REC.MAX_BYTES // 1024 // 1024} MB）で "
+                                    f"{rec.nominal_seconds:.2f} 秒に切り詰め")
+                if rt > 3:
+                    warnings.append("転送がデータ長より大幅に速いため、実時間で連続した"
+                                    "データではない可能性（240k 推奨）")
+                info = {"path": str(rec.path), "seconds": rec.nominal_seconds,
+                        "samples": rec.total_samples, "realtime": rt,
+                        "warning": " / ".join(warnings) or None}
+        except Exception as e:
+            info = {"error": f"{type(e).__name__}: {e}"}
+        finally:
+            if own_transport is not None:
+                try:
+                    own_transport.close()
+                except Exception:
+                    pass
+        with self.lock:
+            self.status.update(recording=False, record_seconds=0.0, last_record=info)
 
     def _scope_kwargs(self) -> dict:
         return dict(rate=self.cfg["rate"], ch1_range=self.cfg["ch1"],
@@ -403,10 +468,18 @@ class Handler(BaseHTTPRequestHandler):
                 "ch1_ranges": list(C.CH1_RANGES),
                 "ch2_ranges": list(C.CH2_RANGES),
                 "defaults": DEFAULT_CFG,
+                "capacity": {label: REC.seconds_for(r.hz, REC.MAX_BYTES)
+                             for label, r in C.SAMPLE_RATES.items()},
+                "max_mb": REC.MAX_BYTES // 1024 // 1024,
             })
         elif path == "/api/frame":
             frame, status, cal = self.worker.snapshot()
             self._json({"frame": frame, "status": status, "cal": cal})
+        elif path == "/api/download":
+            qs = parse_qs(url.query)
+            name = (qs.get("name") or [""])[0]
+            fmt = (qs.get("format") or ["bin"])[0]
+            self._download(name, fmt)
         elif path == "/api/export":
             qs = parse_qs(url.query)
             kind = (qs.get("kind") or ["csv"])[0]
@@ -427,6 +500,35 @@ class Handler(BaseHTTPRequestHandler):
         else:
             self._send(404, b"not found", "text/plain")
 
+    def _download(self, name: str, fmt: str) -> None:
+        base = Path(name).name            # ディレクトリ抜きの名前だけ許可
+        p = Path("captures") / base
+        if not p.exists() or not p.is_file():
+            self._json({"error": f"{base} がありません"}, 404)
+            return
+        if fmt == "csv":
+            csv_path = p.with_suffix(p.suffix + ".csv")
+            if not csv_path.exists():
+                try:
+                    REC.to_csv(p, csv_path)
+                except Exception as e:
+                    self._json({"error": f"CSV 変換に失敗: {e}"}, 500)
+                    return
+            p = csv_path
+            ctype = "text/csv; charset=utf-8"
+        else:
+            ctype = "application/octet-stream"
+        body = p.read_bytes()
+        self.send_response(200)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Disposition", f'attachment; filename="{p.name}"')
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        try:
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
     def do_POST(self) -> None:
         url = urlparse(self.path)
         length = int(self.headers.get("Content-Length") or 0)
@@ -434,6 +536,9 @@ class Handler(BaseHTTPRequestHandler):
         if url.path == "/api/config":
             self.worker.set_config(body)
             self._json({"ok": True, "cfg": self.worker.cfg})
+        elif url.path == "/api/record":
+            self.worker.start_record(float(body.get("seconds", 5)))
+            self._json({"ok": True})
         elif url.path == "/api/resync":
             self.worker.resync()
             self._json({"ok": True})

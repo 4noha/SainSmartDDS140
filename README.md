@@ -22,6 +22,21 @@ python3 -m dds140 ui --demo   # 実機なしで UI を確認（合成波形）
 - 実機が抜けたら自動で待機し、挿し直すと復帰する。
 - サーバは 127.0.0.1 のみで待ち受け。外部に公開しない。
 
+## 信号の記録
+
+```sh
+python3 -m dds140 record --capacity                     # レートごとの上限
+python3 -m dds140 record --rate 240k --seconds 10 -o captures/rec.bin
+python3 -m dds140 record --rate 100M --samples 65536 --frames 20 -o captures/multi.bin
+```
+
+UI の「● 記録 (REC)」からも保存できる（`captures/` に `.bin` + `.json`、`.csv` も DL 可）。
+
+**連続記録できるのは 240 kS/s（1 フレーム = 最大 87 秒）だけ**。
+39k/625k/100M は転送が実時間より速く、届いたサンプルが時間的に連続している
+保証がない（`realtime_factor` として記録・警告する）。
+詳細と実測値は `docs/recording.md`。
+
 ## CLI
 
 ```sh
@@ -59,7 +74,9 @@ libusb の場所を明示したいときは `DDS140_LIBUSB=/path/to/libusb-1.0.d
 | 垂直レンジ 2V/1V/500mV/200mV/100mV/50mV per div | ⚠️ コマンドは送信・応答確認。実減衰量は未校正 |
 | AC/DC 結合（CH 単位） | ⚠️ コマンドは送信。波形での確認は未 |
 | 個体キャリブレーション（ゼロ点・ゲイン） | ✅ 起動時に読み出して電圧換算に使用 |
-| トリガ（ハード） | ⬜ 未対応（ベンダ GUI もソフト処理） |
+| トリガ（ハード） | ⬜ 未対応（UI はソフトウェアトリガ） |
+| 連続記録（240 kS/s・最大 87 秒） | ✅ 動作確認 |
+| CSV / 生バイト / SVG 出力 | ✅ |
 | ロジックアナライザ（8ch） | ⬜ 未着手 |
 | 信号発生器 | ⬜ コマンドは判明、未実装 |
 
@@ -76,11 +93,13 @@ matplotlib ウィンドウ（`--plot`）。
 | `dds140/transport.py` | 制御転送（`0x80` vendor IN 1B）と EP `0x82` の読み出し |
 | `dds140/const.py` | 実機で確認したコマンド・レート・レンジの表 |
 | `dds140/scope.py` | キャリブレーション、設定、1 フレーム取得、電圧換算 |
-| `dds140/cli.py` | `info` / `cal` / `capture` / `ui` |
+| `dds140/cli.py` | `info` / `cal` / `capture` / `record` / `ui` |
+| `dds140/record.py` | 記録（1 フレーム長時間・複数フレーム）、CSV 変換 |
 | `dds140/webui.py` | ローカル UI のサーバ（標準ライブラリのみ）とワーカー |
 | `dds140/web/` | UI の HTML / CSS / JS（canvas 描画） |
 | `dds140/selftest.py` | 実機でレート・レンジを一通り試す（開発用） |
 | `docs/protocol.md` | **プロトコルの全容（実測ベース）** |
+| `docs/recording.md` | 記録の実測上限と落とし穴 |
 | `docs/hardware.md` | 部品・USB 構成 |
 | `docs/reverse-engineering.md` | どうやってプロトコルを割ったか（手順の記録） |
 | `tools/usb_probe.py` | 汎用 USB 調査（列挙・descriptor・単発転送） |

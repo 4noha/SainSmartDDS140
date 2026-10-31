@@ -202,3 +202,21 @@ input[type=range] {
   width: 100%;
   accent-color: var(--ch1);
 }
+
+.recstatus {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.6;
+  word-break: break-all;
+}
+.recstatus a { color: var(--ch1); }
+.recstatus .warn { color: var(--warn); }
+.recstatus .recording { color: var(--err); }
+#recBtn:disabled { opacity: .5; cursor: default; }
+
+.rechint {
+  margin-top: 6px;
+  font-size: 11px;
+  color: #5b6b7b;
+}
