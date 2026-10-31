@@ -113,8 +113,12 @@ def cmd_capture(args) -> int:
 
     ch1 = not args.only_ch2
     ch2 = not args.only_ch1
+    mode = "200M 合成タイムベース" if f.combined else "2ch"
     print(f"DDS140: {f.samples} サンプル/ch, {f.rate_hz/1e6:g} MS/s, "
-          f"CH1 {f.ch1_range.name}/div, CH2 {f.ch2_range.name}/div")
+          f"{mode}, CH1 {f.ch1_range.name}/div, CH2 {f.ch2_range.name}/div")
+    if f.combined:
+        print("  注意: 合成モードでもデータは CH1/CH2 の 2 バイト構成で、"
+              "実効レートは 2ch と同じ（実測 ~3.5 MS/s）")
     if ch1:
         _stats("CH1", f.ch1_volts())
     if ch2:
@@ -354,15 +358,21 @@ def cmd_monitor(args) -> int:
         s.read_calibration()
         s.configure(rate=args.rate, ch1_range=args.ch1, ch2_range=args.ch2,
                     ac_ch1=args.ac1, ac_ch2=args.ac2)
-        print(f"DDS140 monitor  rate={args.rate} CH1={args.ch1}/div CH2={args.ch2}/div"
-              f"  (Ctrl+C で終了)")
-        print("   時刻       CH1 rms      pp    周波数  |   CH2 rms      pp    周波数")
+        combined = C.SAMPLE_RATES[args.rate].combine
+        print(f"DDS140 monitor  rate={args.rate}"
+              + (" 合成(1ch)" if combined else "")
+              + f"  CH1={args.ch1}/div"
+              + ("" if combined else f" CH2={args.ch2}/div")
+              + "  (Ctrl+C で終了)")
+        print("   時刻       CH1 rms      pp    周波数"
+              + ("" if combined else "  |   CH2 rms      pp    周波数"))
         end = _time.monotonic() + args.seconds if args.seconds else None
         while True:
             f = s.capture(total_bytes=int(args.samples) * 2,
                           poll_timeout=15.0, skip=args.skip)
             cells = []
-            for vals in (f.ch1_volts(), f.ch2_volts()):
+            series = (f.ch1_volts(),) if f.combined else (f.ch1_volts(), f.ch2_volts())
+            for vals in series:
                 m = sum(vals) / len(vals)
                 ac = [v - m for v in vals]
                 rms = (sum(v * v for v in ac) / len(ac)) ** 0.5
@@ -371,7 +381,7 @@ def cmd_monitor(args) -> int:
                 ftxt = "     -  " if fr is None else f"{fr/1000:8.2f}k"
                 cells.append(f"{rms:8.4f} {pp:7.4f} {ftxt}")
             stamp = _time.strftime("%H:%M:%S")
-            print(f"  {stamp}  {cells[0]}  | {cells[1]}", flush=True)
+            print(f"  {stamp}  " + "  | ".join(cells), flush=True)
             if end and _time.monotonic() > end:
                 break
             _time.sleep(max(0.0, args.interval))

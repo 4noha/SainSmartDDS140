@@ -209,14 +209,22 @@ function updateRecordStatus(st) {
 }
 
 function updateMeasurements(f) {
+  $("ch2range").parentElement.classList.toggle("disabled", !!f.combined);
   for (const ch of ["ch1", "ch2"]) {
-    const s = f[ch].stats || {};
+    const d = f[ch];
+    if (!d) {
+      $(ch + "pp").textContent = $(ch + "max").textContent =
+        $(ch + "min").textContent = $(ch + "mean").textContent =
+        $(ch + "rms").textContent = $(ch + "freq").textContent = "–";
+      continue;
+    }
+    const s = d.stats || {};
     $(ch + "pp").textContent = fmt(s.pp);
     $(ch + "max").textContent = fmt(s.max);
     $(ch + "min").textContent = fmt(s.min);
     $(ch + "mean").textContent = fmt(s.mean);
     $(ch + "rms").textContent = fmt(s.rms);
-    $(ch + "freq").textContent = fmtHz(f[ch].freq);
+    $(ch + "freq").textContent = fmtHz(d.freq);
   }
   $("spanInfo").textContent = `${fmtTime(f.samples * f.dt)} / ${f.samples} smp`;
 }
@@ -271,7 +279,7 @@ function draw() {
   if (f.ylim) {
     [lo, hi] = f.ylim;
   } else {
-    const all = f.ch1.envelope.concat(f.ch2.envelope);
+    const all = f.ch1.envelope.concat(f.ch2 ? f.ch2.envelope : []);
     lo = Math.min(...all);
     hi = Math.max(...all);
   }
@@ -288,7 +296,7 @@ function draw() {
   }
 
   drawTrace(ctx, f.ch1.envelope, f.samples, "#3ec6ff", padL, gw, toY, 1);
-  drawTrace(ctx, f.ch2.envelope, f.samples, "#ff5e8a", padL, gw, toY, 1);
+  if (f.ch2) drawTrace(ctx, f.ch2.envelope, f.samples, "#ff5e8a", padL, gw, toY, 1);
 
   // 目盛り（右端に電圧範囲）
   const dpr = window.devicePixelRatio || 1;

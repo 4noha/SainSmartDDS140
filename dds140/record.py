@@ -31,14 +31,14 @@ DEFAULT_DIR = Path("captures")
 MAX_BYTES = 40 * 1024 * 1024
 
 
-def bytes_for(rate_hz: float, seconds: float) -> int:
-    """指定秒数ぶんのバイト数（1 サンプル 2 バイト、偶数に丸め）。"""
-    n = int(round(rate_hz * seconds)) * 2
-    return max(2, n + (n % 2))
+def bytes_for(rate_hz: float, seconds: float, bytes_per_sample: int = 2) -> int:
+    """指定秒数ぶんのバイト数（通常 1 サンプル 2 バイト = CH1/CH2 交互）。"""
+    n = int(round(rate_hz * seconds)) * bytes_per_sample
+    return max(bytes_per_sample, n + (n % bytes_per_sample))
 
 
-def seconds_for(rate_hz: float, total_bytes: int) -> float:
-    return (total_bytes // 2) / rate_hz
+def seconds_for(rate_hz: float, total_bytes: int, bytes_per_sample: int = 2) -> float:
+    return (total_bytes // bytes_per_sample) / rate_hz
 
 
 @dataclass
@@ -84,7 +84,9 @@ def _meta(scope: Scope, cfg: dict) -> dict:
     return {
         "tool": f"dds140 {__version__}",
         "created": _dt.datetime.now().astimezone().isoformat(timespec="seconds"),
-        "format": "interleaved uint8: CH1, CH2, CH1, CH2, ...",
+        "format": ("uint8: CH1 only, 2x rate (combined mode)"
+                   if getattr(scope, "combined", False)
+                   else "interleaved uint8: CH1, CH2, CH1, CH2, ..."),
         "rate_label": cfg["rate"],
         "rate_hz": scope.rate_hz,
         "ch1_range": scope.ch1_range.name,
@@ -103,11 +105,12 @@ def record(scope: Scope, out: str | Path | None = None, seconds: float | None = 
     """記録する。`samples`（1ch）優先、なければ `seconds` から計算。"""
     cfg = cfg or {}
     rate = scope.rate_hz
+    per = 1 if getattr(scope, "combined", False) else 2
     if samples is None:
         seconds = 1.0 if seconds is None else seconds
-        total_bytes = bytes_for(rate, seconds)
+        total_bytes = bytes_for(rate, seconds, per)
     else:
-        total_bytes = int(samples) * 2
+        total_bytes = int(samples) * per
 
     capped = False
     if total_bytes > MAX_BYTES:

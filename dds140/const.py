@@ -66,9 +66,14 @@ class SampleRate:
     hz: float
     label: str
     channels: int = 2
+    combine: bool = False      # True = CH1/CH2 合成（2 つの ADC を同じ入力に使う）
 
 
 SAMPLE_RATES = {
+    # 合成モード: 2 つの ADC を同じ入力に交互に当てて 1ch を 2 倍のレートで取る。
+    # データは 2 バイトとも CH1（＝バイト列がそのままサンプル列）。
+    "200M": SampleRate(ADC_100M, 160e6, "200 MS/s（合成・1ch）", channels=1,
+                       combine=True),
     "100M": SampleRate(ADC_100M, 100e6, "100 MS/s（2ch 同時）"),
     "10M": SampleRate(ADC_10M, 10e6, "10 MS/s"),
     "625k": SampleRate(ADC_625K, 625e3, "625 kS/s"),

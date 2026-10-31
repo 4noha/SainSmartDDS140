@@ -29,6 +29,27 @@ class ConstTest(unittest.TestCase):
         self.assertEqual(codes, {0x0, 0xC, 0x8, 0xB, 0xA})
 
 
+class CombinedModeTest(unittest.TestCase):
+    def test_200m_is_the_combined_timebase(self):
+        r = C.SAMPLE_RATES["200M"]
+        self.assertTrue(r.combine)
+        self.assertEqual(r.code, C.ADC_100M)
+
+    def test_other_rates_are_not_combined(self):
+        for label in ("100M", "10M", "625k", "39k", "240k"):
+            self.assertFalse(C.SAMPLE_RATES[label].combine, label)
+
+    def test_combined_flag_does_not_change_data_layout(self):
+        # 合成モードでもデータは CH1/CH2 の 2 バイト構成（実測）
+        cal = Calibration(raw={1: 117, 2: 120, 3: 164, 4: 160})
+        f = Frame(raw=bytes([117, 120, 118, 121]), rate_hz=1e6,
+                  ch1_range=C.CH1_RANGES["1V"], ch2_range=C.CH2_RANGES["1V"],
+                  cal=cal, combined=True)
+        self.assertEqual(f.ch1_codes, bytes([117, 118]))
+        self.assertEqual(f.ch2_codes, bytes([120, 121]))
+        self.assertEqual(f.samples, 2)
+
+
 class FrameTest(unittest.TestCase):
     def setUp(self):
         self.cal = Calibration(raw={1: 117, 2: 120, 3: 164, 4: 160, 5: 125})

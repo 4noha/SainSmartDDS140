@@ -220,3 +220,6 @@ input[type=range] {
   font-size: 11px;
   color: #5b6b7b;
 }
+
+.disabled { opacity: .35; }
+.legend .ch1 b, .legend .ch2 b { font-weight: 600; }

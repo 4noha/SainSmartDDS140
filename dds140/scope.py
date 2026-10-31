@@ -37,6 +37,7 @@ class Frame:
     probe_ch2: float = 1.0
     poll_seconds: float = 0.0
     read_seconds: float = 0.0
+    combined: bool = False        # cmd 36 bit0（ベンダの「200M」合成タイムベース）を使ったか
 
     # ---------------------------------------------------------------- 生データ
     @property
@@ -72,10 +73,12 @@ class Frame:
         i = index % n if n else 0
         if i == 0:
             return self
-        return Frame(raw=self.raw[2 * i:] + self.raw[:2 * i],
+        cut = 2 * i
+        return Frame(raw=self.raw[cut:] + self.raw[:cut],
                      rate_hz=self.rate_hz, ch1_range=self.ch1_range,
                      ch2_range=self.ch2_range, cal=self.cal,
-                     probe_ch1=self.probe_ch1, probe_ch2=self.probe_ch2)
+                     probe_ch1=self.probe_ch1, probe_ch2=self.probe_ch2,
+                     combined=self.combined)
 
     def find_trigger(self, channel: int = 1, level: float = 0.5,
                      hysteresis: float = 0.15) -> int | None:
@@ -121,6 +124,7 @@ class Scope:
         self.ctrl1 = 0x00      # cmd 36
         self.ctrl0 = 0x00      # cmd 148
         self.rate_hz = 100e6
+        self.combined = False
         self.ch1_range = C.CH1_RANGES["1V"]
         self.ch2_range = C.CH2_RANGES["1V"]
 
@@ -144,6 +148,7 @@ class Scope:
                   ac_ch2: bool = False) -> None:
         r = C.SAMPLE_RATES[rate]
         self.rate_label = rate
+        self.combined = bool(r.combine)
         self.rate_hz = r.hz
         if self.use_rate_calibration:
             from .calib import rate_for
@@ -169,6 +174,11 @@ class Scope:
             self.ctrl1 |= 0x08
         self.ctrl1 &= ~0x06
         self.ctrl1 |= (self.ch2_range.ctrl_bits12 & 0x06)
+        # 合成モード（cmd 36 bit0）: CH1/CH2 の 2 つの ADC を同じ入力に使う
+        if r.combine:
+            self.ctrl1 |= C.COMBINE
+        else:
+            self.ctrl1 &= ~C.COMBINE
         if ac_ch2:
             self.ctrl1 |= C.AC_CH2
         else:
@@ -227,6 +237,7 @@ class Scope:
             cal=self.cal,
             poll_seconds=t_ready - t_start,
             read_seconds=t_done - t_ready,
+            combined=self.combined,
         )
 
     # --------------------------------------------------------------------- misc

@@ -19,6 +19,7 @@ from . import const as C
 from .scope import Scope
 
 REFERENCE_HZ = 1000.0          # 内蔵標準矩形波（仕様書 §4.2）
+MIN_TRUSTED_PERIOD = 8.0       # これ未満の周期はエイリアスとみなして捨てる
 CONF_PATH = Path.home() / ".dds140" / "rates.json"
 
 
@@ -78,6 +79,10 @@ def calibrate(scope: Scope, labels=None, reference_hz: float = REFERENCE_HZ,
             if verbose:
                 print(f"  {label:5s}: 矩形波が見えない（プローブを内蔵 1kHz に当てる）")
             continue
+        if period < MIN_TRUSTED_PERIOD:
+            if verbose:
+                print(f"  {label:5s}: 周期 {period:.1f} smp は短すぎる（エイリアス）→ 採用しない")
+            continue
         eff = period * reference_hz
         result[label] = {
             "period_samples": period,
@@ -113,8 +118,8 @@ def rate_for(label: str, label_hz: float, cal: dict | None = None) -> float:
         cal = load()
     entry = cal.get(label)
     if entry and entry.get("rate_hz"):
-        ratio = float(entry.get("ratio") or 0)
-        # 極端な比率は測定失敗（エイリアス等）とみなして使わない
-        if 2.0 <= ratio <= 40.0:
+        # 周期が極端に短い測定はエイリアス（例: 240k で 4 サンプル）なので使わない
+        period = float(entry.get("period_samples") or 0)
+        if period >= MIN_TRUSTED_PERIOD:
             return float(entry["rate_hz"])
     return label_hz

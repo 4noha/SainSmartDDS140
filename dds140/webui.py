@@ -140,10 +140,11 @@ def _nice_ylim(vals: list[float]) -> tuple[float, float]:
 
 def frame_to_json(f: Frame, seq: int, cfg: dict) -> dict:
     v1 = f.ch1_volts()
-    v2 = f.ch2_volts()
+    v2 = f.ch2_volts()          # 合成モードでは空
     dt = 1.0 / f.rate_hz
     ylim = _nice_ylim(v1 + v2)
     payload = {
+        "combined": f.combined,
         "seq": seq,
         "ylim": list(ylim),
         "time": time.time(),
