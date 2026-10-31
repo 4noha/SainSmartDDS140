@@ -14,6 +14,9 @@ macOS 実機での確認だけが残っている（デバイスは Windows 機�
 - 波形は EP `0x82` から **8bit × 2ch の交互配置**（`raw[0::2]` が CH1）。
 - 開始 `cmd 51` → 状態 `cmd 80` が **33** になったら読む。
 - 詳細と実測値は `docs/protocol.md`、割り方は `docs/reverse-engineering.md`。
+- 入口は CLI（`python3 -m dds140 capture`）とブラウザ UI（`python3 -m dds140 ui`）。
+  UI は標準ライブラリの HTTP サーバ + canvas。USB に触るのはワーカースレッド 1 本だけ。
+- フレーム先頭 2〜10 サンプルは整定で跳ねる（実測）。既定で `skip=16` で捨てる。
 
 ## 決定済みのこと
 

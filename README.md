@@ -4,10 +4,25 @@ SainSmart **DDS140**（USB オシロスコープ、オプションで信号発�
 **macOS から**扱うための実装。公式ソフトは Windows XP〜8 専用なので、
 USB プロトコルを自作のクライアントで再現した。
 
-**現状: macOS 用クライアントは実装済み・Windows 実機で動作確認済み。
-macOS 実機では未確認（デバイスが Windows 機に挿さっているため）。**
+**現状: macOS / Windows の実機で動作確認済み（CLI と UI の両方）。**
 
-## まず使う
+## UI（ブラウザで開く・依存なし）
+
+```sh
+python3 -m dds140 ui          # http://127.0.0.1:8765/ が開く
+python3 -m dds140 ui --demo   # 実機なしで UI を確認（合成波形）
+```
+
+![UI](docs/ui-screenshot.png)
+
+- 波形は min/mean/max の包絡で描画（ピーク表示の ON/OFF 可）。
+- レート・サンプル数・レンジ・AC 結合・先頭 skip・トリガを UI から変更。
+- Run/Hold、Single、CSV / SVG の書き出し。
+- キー: `space` Run/Hold、`s` Single、`e` CSV。
+- 実機が抜けたら自動で待機し、挿し直すと復帰する。
+- サーバは 127.0.0.1 のみで待ち受け。外部に公開しない。
+
+## CLI
 
 ```sh
 cd ~/works/tools/SainSmartDDS140
@@ -61,7 +76,9 @@ matplotlib ウィンドウ（`--plot`）。
 | `dds140/transport.py` | 制御転送（`0x80` vendor IN 1B）と EP `0x82` の読み出し |
 | `dds140/const.py` | 実機で確認したコマンド・レート・レンジの表 |
 | `dds140/scope.py` | キャリブレーション、設定、1 フレーム取得、電圧換算 |
-| `dds140/cli.py` | `info` / `cal` / `capture` |
+| `dds140/cli.py` | `info` / `cal` / `capture` / `ui` |
+| `dds140/webui.py` | ローカル UI のサーバ（標準ライブラリのみ）とワーカー |
+| `dds140/web/` | UI の HTML / CSS / JS（canvas 描画） |
 | `dds140/selftest.py` | 実機でレート・レンジを一通り試す（開発用） |
 | `docs/protocol.md` | **プロトコルの全容（実測ベース）** |
 | `docs/hardware.md` | 部品・USB 構成 |

@@ -215,6 +215,11 @@ def _plot(f: Frame, ch1: bool, ch2: bool) -> None:
     plt.show()
 
 
+def cmd_ui(args) -> int:
+    from .webui import serve
+    return serve(port=args.port, demo=args.demo, open_browser=not args.no_open)
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="dds140",
@@ -254,6 +259,13 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--plot", action="store_true",
                     help="matplotlib で表示（入っていれば）")
     sp.set_defaults(func=cmd_capture)
+
+    sp = sub.add_parser("ui", help="ブラウザ UI を起動（依存なし）")
+    sp.add_argument("--port", type=int, default=8765)
+    sp.add_argument("--demo", action="store_true",
+                    help="実機を使わず合成波形で UI を確認する")
+    sp.add_argument("--no-open", action="store_true", help="ブラウザを自動で開かない")
+    sp.set_defaults(func=cmd_ui)
     return p
 
 

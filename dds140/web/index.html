@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DDS140 — Oscilloscope</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header>
+  <div class="brand">
+    <span class="dot" id="statusDot"></span>
+    <span class="title">DDS140</span>
+    <span class="sub" id="statusText">接続中…</span>
+    <span class="badge" id="demoBadge" hidden>DEMO</span>
+  </div>
+  <div class="right">
+    <span class="mono" id="fps">– fps</span>
+    <span class="mono" id="spanInfo">–</span>
+  </div>
+</header>
+
+<main>
+  <section class="scope">
+    <canvas id="scope"></canvas>
+    <div class="legend">
+      <span class="ch1">CH1 <b id="ch1range">1V</b></span>
+      <span class="ch2">CH2 <b id="ch2range">1V</b></span>
+      <label class="check inline"><input id="band" type="checkbox" checked> ピーク表示</label>
+      <span class="hint">space=Run/Hold　s=Single　e=CSV</span>
+    </div>
+  </section>
+
+  <aside>
+    <div class="group">
+      <div class="row">
+        <button id="runBtn" class="primary">Hold</button>
+        <button id="singleBtn">Single</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <label>サンプルレート</label>
+      <select id="rate"></select>
+      <label>サンプル数 / ch</label>
+      <select id="samples">
+        <option>2048</option>
+        <option>4096</option>
+        <option selected>16384</option>
+        <option>65536</option>
+        <option>262144</option>
+      </select>
+      <label>先頭の捨てサンプル (--skip)</label>
+      <input id="skip" type="number" min="0" max="4096" step="1" value="16">
+    </div>
+
+    <div class="group">
+      <label class="check"><input id="trigOn" type="checkbox" checked> トリガ（CH1 立上り）</label>
+      <label>トリガレベル <span id="trigVal" class="mono">50%</span></label>
+      <input id="trigLevel" type="range" min="0" max="100" step="5" value="50">
+    </div>
+
+    <div class="group ch1box">
+      <label>CH1 レンジ (V/div)</label>
+      <select id="ch1rangeSel"></select>
+      <label class="check"><input id="ac1" type="checkbox"> AC 結合</label>
+    </div>
+
+    <div class="group ch2box">
+      <label>CH2 レンジ (V/div)</label>
+      <select id="ch2rangeSel"></select>
+      <label class="check"><input id="ac2" type="checkbox"> AC 結合</label>
+    </div>
+
+    <div class="group">
+      <div class="row">
+        <button id="csvBtn">CSV</button>
+        <button id="svgBtn">SVG</button>
+      </div>
+    </div>
+
+    <div class="group measure">
+      <table>
+        <thead><tr><th></th><th class="ch1">CH1</th><th class="ch2">CH2</th></tr></thead>
+        <tbody>
+          <tr><th>Vpp</th><td id="ch1pp">–</td><td id="ch2pp">–</td></tr>
+          <tr><th>Vmax</th><td id="ch1max">–</td><td id="ch2max">–</td></tr>
+          <tr><th>Vmin</th><td id="ch1min">–</td><td id="ch2min">–</td></tr>
+          <tr><th>平均</th><td id="ch1mean">–</td><td id="ch2mean">–</td></tr>
+          <tr><th>実効値</th><td id="ch1rms">–</td><td id="ch2rms">–</td></tr>
+          <tr><th>周波数</th><td id="ch1freq">–</td><td id="ch2freq">–</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </aside>
+</main>
+
+<footer>
+  <span class="mono" id="msg">DDS140 を USB に直挿ししてください</span>
+</footer>
+
+<script src="/app.js"></script>
+</body>
+</html>

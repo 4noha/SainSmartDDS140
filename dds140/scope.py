@@ -63,6 +63,41 @@ class Frame:
         k = self._volts_per_lsb(self.ch2_range, self.ch2_range.cal_scale, self.probe_ch2)
         return [(c - zero) * k for c in self.ch2_codes]
 
+    # ---------------------------------------------------------------- トリガ
+    def rotate(self, index: int) -> "Frame":
+        """サンプル列を index だけ回す（表示を安定させるソフトウェアトリガ）。"""
+        n = self.samples
+        i = index % n if n else 0
+        if i == 0:
+            return self
+        return Frame(raw=self.raw[2 * i:] + self.raw[:2 * i],
+                     rate_hz=self.rate_hz, ch1_range=self.ch1_range,
+                     ch2_range=self.ch2_range, cal=self.cal,
+                     probe_ch1=self.probe_ch1, probe_ch2=self.probe_ch2)
+
+    def find_trigger(self, channel: int = 1, level: float = 0.5,
+                     hysteresis: float = 0.15) -> int | None:
+        """level（0..1, 振幅に対する位置）を上向きに横切る最初の位置。"""
+        codes = self.ch1_codes if channel == 1 else self.ch2_codes
+        n = len(codes)
+        if n < 4:
+            return None
+        lo = min(codes)
+        hi = max(codes)
+        span = hi - lo
+        if span < 4:
+            return None
+        mid = lo + span * level
+        hyst = span * hysteresis
+        armed = False
+        for i, c in enumerate(codes):
+            if not armed:
+                if c < mid - hyst:
+                    armed = True
+            elif c > mid + hyst:
+                return i
+        return None
+
     def times(self) -> list[float]:
         dt = 1.0 / self.rate_hz
         return [i * dt for i in range(self.samples)]
