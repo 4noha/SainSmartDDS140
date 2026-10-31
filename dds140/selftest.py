@@ -27,7 +27,7 @@ def main() -> int:
             for rng in ("1V",):
                 s.configure(rate=rate, ch1_range=rng, ch2_range=rng)
                 try:
-                    f = s.capture(total_bytes=4096, timeout=8000)
+                    f = s.capture(total_bytes=4096, timeout=8000, skip=16)
                     print(f"  {rate:5s} {rng:5s}  ch1 {stats(f.ch1_codes)}  "
                           f"ch2 {stats(f.ch2_codes)}")
                 except Exception as e:
@@ -36,14 +36,14 @@ def main() -> int:
         print("=== ranges (rate=100M)")
         for name in C.CH1_RANGES:
             s.configure(rate="100M", ch1_range=name, ch2_range="1V")
-            f = s.capture(total_bytes=2048)
+            f = s.capture(total_bytes=2048, skip=16)
             v = f.ch1_volts()
             print(f"  CH1 {name:6s} code={C.CH1_RANGES[name].code:3d} "
                   f"ctrl1=0x{s.ctrl1:02x}  {stats(f.ch1_codes)}  "
                   f"[{min(v):+.3f}, {max(v):+.3f}] V")
         for name in C.CH2_RANGES:
             s.configure(rate="100M", ch1_range="1V", ch2_range=name)
-            f = s.capture(total_bytes=2048)
+            f = s.capture(total_bytes=2048, skip=16)
             v = f.ch2_volts()
             print(f"  CH2 {name:6s} code={C.CH2_RANGES[name].code:3d} "
                   f"ctrl1=0x{s.ctrl1:02x}  {stats(f.ch2_codes)}  "
@@ -53,7 +53,7 @@ def main() -> int:
         for ac1, ac2 in ((True, False), (False, True), (True, True)):
             s.configure(rate="100M", ch1_range="1V", ch2_range="1V",
                         ac_ch1=ac1, ac_ch2=ac2)
-            f = s.capture(total_bytes=2048)
+            f = s.capture(total_bytes=2048, skip=16)
             print(f"  ac1={ac1} ac2={ac2} ctrl0=0x{s.ctrl0:02x} ctrl1=0x{s.ctrl1:02x}  "
                   f"ch1 {stats(f.ch1_codes)}  ch2 {stats(f.ch2_codes)}")
     finally:

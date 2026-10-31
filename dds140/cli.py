@@ -103,7 +103,7 @@ def cmd_capture(args) -> int:
         frames = []
         for i in range(args.frames):
             f = s.capture(total_bytes=total, timeout=args.timeout,
-                          poll_timeout=args.poll_timeout)
+                          poll_timeout=args.poll_timeout, skip=args.skip)
             frames.append(f)
             if args.verbose:
                 print(f"  frame {i}: {f.samples} samples / ch @ {f.rate_hz/1e6:g} MS/s")
@@ -187,6 +187,8 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--only-ch2", action="store_true")
     sp.add_argument("-o", "--out", help="CSV 出力先")
     sp.add_argument("--raw", help="生バイト出力先（CH1,CH2 交互）")
+    sp.add_argument("--skip", type=int, default=0,
+                    help="フレーム先頭の捨てサンプル数。実測では先頭 ~10 個が整定で跳ねる")
     sp.add_argument("--plot", action="store_true", help="matplotlib で表示")
     sp.set_defaults(func=cmd_capture)
     return p

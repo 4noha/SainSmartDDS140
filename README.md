@@ -24,8 +24,8 @@ python3 -m dds140 capture --samples 65536 -o wave.csv
 # プロット（matplotlib がある場合）
 python3 -m dds140 capture --samples 65536 --plot
 
-# レンジとレートを指定
-python3 -m dds140 capture --rate 10M --ch1 200mV --ch2 1V --ac1 --samples 8192 -o w.csv
+# レンジとレートを指定（先頭 16 サンプルは整定で跳ねるので捨てる）
+python3 -m dds140 capture --rate 10M --ch1 200mV --ch2 1V --ac1 --samples 8192 --skip 16 -o w.csv
 ```
 
 依存: `pyusb` + `libusb-1.0`（macOS は brew の `libusb` が入っていれば OK）。
@@ -35,7 +35,7 @@ libusb の場所を明示したいときは `DDS140_LIBUSB=/path/to/libusb-1.0.d
 
 | 機能 | 状態 |
 |---|---|
-| 2ch 同時取り込み（8 bit、CH1/CH2 交互） | ✅ 動作確認 |
+| 2ch 同時取り込み（8 bit、CH1/CH2 交互） | ✅ macOS / Windows で動作確認 |
 | サンプルレート 100M / 10M / 625k / 240k / 39k | ✅ 動作確認（240k は待ちが長い） |
 | 200 MS/s 合成モード | ⬜ 未対応（データ配置が未検証） |
 | 垂直レンジ 2V/1V/500mV/200mV/100mV/50mV per div | ⚠️ コマンドは送信・応答確認。実減衰量は未校正 |

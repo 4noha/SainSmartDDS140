@@ -133,7 +133,7 @@ class Scope:
 
     # ------------------------------------------------------------------- capture
     def capture(self, total_bytes: int = 131072, timeout: int = 3000,
-                poll_timeout: float = 15.0) -> Frame:
+                poll_timeout: float = 15.0, skip: int = 0) -> Frame:
         if total_bytes % 2:
             total_bytes += 1
 
@@ -157,6 +157,10 @@ class Scope:
         data = self.t.read_frame(total_bytes, timeout=timeout)
         if len(data) < total_bytes:
             raise IOError(f"読み出し不足: {len(data)} / {total_bytes} バイト")
+
+        # フレーム先頭の数サンプルは ADC/マルチプレクサの整定で跳ねる（実測）。
+        if skip:
+            data = data[min(skip, total_bytes // 2) * 2:]
 
         return Frame(
             raw=data,
