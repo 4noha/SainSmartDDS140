@@ -25,8 +25,10 @@ python3 -m dds140 ui --demo   # 実機なしで UI を確認（合成波形）
 ## 入力の確認
 
 ```sh
-python3 -m dds140 input-check            # チャネルごとに信号が来ているか判定
-python3 -m dds140 input-check --spectrum # CH1 の低周波スペクトルも出す
+python3 -m dds140 input-check                 # チャネルごとに信号が来ているか判定
+python3 -m dds140 monitor                     # 数値をライブ表示（プローブ確認）
+python3 -m dds140 spectrum --rate 240k        # 何 Hz の成分が乗っているか
+python3 -m dds140 spectrum --f-lo 800 --f-hi 1200   # 1kHz の矩形波を狙い撃ち
 ```
 
 本物の信号は**レンジを変えても AC RMS が変わらない**。ADC のノイズやドリフトは

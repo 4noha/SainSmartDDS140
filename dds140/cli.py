@@ -291,6 +291,27 @@ def cmd_inputcheck(args) -> int:
     return 0
 
 
+def cmd_spectrum(args) -> int:
+    """低周波のピークを出す（ハム・校正用のゆっくりした信号の確認）。"""
+    from . import analyze as A
+
+    t = Transport.open(timeout=args.timeout)
+    s = Scope(t, verbose=args.verbose)
+    try:
+        s.read_calibration()
+        peaks, info = A.analyse(s, rate=args.rate, ch=args.ch, seconds=args.seconds,
+                                f_lo=args.f_lo, f_hi=args.f_hi, step=args.step)
+    finally:
+        t.close()
+    print(f"レート {info['rate']/1e3:g} kS/s, {info['samples']} サンプル "
+          f"({info['seconds']*1e3:.1f} ms), 間引き ×{info['decimation']}")
+    print(f"  pp {info['pp']:.3f} V / AC rms {info['rms']:.4f} V")
+    print(f"  {'周波数':>10s}  {'相対':>5s}  注記")
+    for p in peaks[:8]:
+        print(f"  {p.freq:9.1f} Hz  {p.rel:5.2f}  {A.mains_note(p.freq)}")
+    return 0
+
+
 def cmd_monitor(args) -> int:
     """ターミナルで数値をライブ表示する（プローブの当たり確認用）。"""
     import time as _time
@@ -402,6 +423,15 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--plot", action="store_true",
                     help="matplotlib で表示（入っていれば）")
     sp.set_defaults(func=cmd_capture)
+
+    sp = sub.add_parser("spectrum", help="低周波のピークを調べる（ハム・校正用）")
+    sp.add_argument("--rate", choices=sorted(C.SAMPLE_RATES), default="240k")
+    sp.add_argument("--ch", type=int, choices=(1, 2), default=1)
+    sp.add_argument("--seconds", type=float, default=0.5)
+    sp.add_argument("--f-lo", type=float, default=10.0)
+    sp.add_argument("--f-hi", type=float, default=5000.0)
+    sp.add_argument("--step", type=float, default=5.0)
+    sp.set_defaults(func=cmd_spectrum)
 
     sp = sub.add_parser("monitor", help="数値をライブ表示（プローブ確認用）")
     sp.add_argument("--rate", choices=sorted(C.SAMPLE_RATES), default="10M")
