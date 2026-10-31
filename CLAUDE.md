@@ -7,7 +7,7 @@ SainSmart **DDS140**（USB オシロスコープ + 信号発生器モジュー�
 そのうえで CLI を作る。ハードと既知事項は `README.md` / `docs/`。
 
 **現状（2026-10-31）: プロトコルは解明済み。macOS 用クライアント `dds140/` を実装し、
-Windows 実機（`8312:8312`、`nokki@192.168.0.12`）でキャプチャまで動作確認した。
+Windows 実機（`8312:8312`、手元の Windows 機）でキャプチャまで動作確認した。
 macOS 実機での確認だけが残っている（デバイスは Windows 機に挿さっている）。**
 
 - コマンドは制御転送 `bmRequestType=0x80` / `bRequest=cmd` / `wValue=引数` / `wLength=1`。

@@ -1,5 +1,9 @@
 # SainSmartDDS140
 
+macOS client for the **SainSmart DDS140** USB oscilloscope (`8312:8312`) —
+protocol reverse-engineered from the vendor's .NET app, with a CLI and a
+browser UI. Works on Windows too (same pyusb code).
+
 SainSmart **DDS140**（USB オシロスコープ、オプションで信号発生器・ロジックアナライザ）を
 **macOS から**扱うための実装。公式ソフトは Windows XP〜8 専用なので、
 USB プロトコルを自作のクライアントで再現した。

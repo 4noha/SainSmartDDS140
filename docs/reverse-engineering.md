@@ -1,12 +1,12 @@
 # どうやってプロトコルを割ったか（再現手順の記録）
 
-2026-10-31 に、実機が挿さっている Windows 機（`nokki@192.168.0.12`, host `n100box`,
-Windows 11 22H2, 管理者）へ SSH して進めた。**同じことをやり直すときはこの順で。**
+2026-10-31 に、実機が挿さっている Windows 機（Windows 11 22H2、管理者）へ SSH して進めた。
+**同じことをやり直すときはこの順で。**
 
 ## 0. 前提の確認
 
 ```sh
-ssh nokki@192.168.0.12 'powershell -NoProfile -Command "Get-PnpDevice -PresentOnly | ? { $_.InstanceId -like ''USB\VID_*'' }"'
+ssh <user>@<windows-host> 'powershell -NoProfile -Command "Get-PnpDevice -PresentOnly | ? { $_.InstanceId -like ''USB\VID_*'' }"'
 ```
 
 `USB\VID_8312&PID_8312` = `USB104` が **USBDevice クラス**（= WinUSB ドライバ）で

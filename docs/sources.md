@@ -35,7 +35,7 @@ DDS140 は 2026 年時点でメーカー（SainSmart）の製品ページが終�
 | `vendor/CD/Driver_*` | Windows 用ドライバ（XP/Win7/Win8、64bit） | — | 同上 |
 | `vendor/CD/DDS140/help/` | `help.chm` を `7z` で展開した HTML（検索用） | 5.5 MB | 同上 |
 
-- 展開元: `C:\Users\nokki\Downloads\101-10-144.rar`（Windows 機、DPI 経由で取得）
+- 展開元: `C:\Users\<user>\Downloads\101-10-144.rar`（配布元の RAR）
 - `vendor/CD/` からは `.avi`（インストール手順とデモ映像 5 本、合計 176 MB）を除いた。
   **映像も `101-10-144.rar` の中に完全な形で入っている**ので、必要なら
   `bsdtar -xf vendor/101-10-144.rar` で取り出せる。
