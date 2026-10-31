@@ -291,6 +291,46 @@ def cmd_inputcheck(args) -> int:
     return 0
 
 
+def cmd_monitor(args) -> int:
+    """ターミナルで数値をライブ表示する（プローブの当たり確認用）。"""
+    import time as _time
+
+    from .webui import _freq_estimate
+
+    t = Transport.open(timeout=args.timeout)
+    s = Scope(t, verbose=args.verbose)
+    try:
+        s.read_calibration()
+        s.configure(rate=args.rate, ch1_range=args.ch1, ch2_range=args.ch2,
+                    ac_ch1=args.ac1, ac_ch2=args.ac2)
+        print(f"DDS140 monitor  rate={args.rate} CH1={args.ch1}/div CH2={args.ch2}/div"
+              f"  (Ctrl+C で終了)")
+        print("   時刻       CH1 rms      pp    周波数  |   CH2 rms      pp    周波数")
+        end = _time.monotonic() + args.seconds if args.seconds else None
+        while True:
+            f = s.capture(total_bytes=int(args.samples) * 2,
+                          poll_timeout=15.0, skip=args.skip)
+            cells = []
+            for vals in (f.ch1_volts(), f.ch2_volts()):
+                m = sum(vals) / len(vals)
+                ac = [v - m for v in vals]
+                rms = (sum(v * v for v in ac) / len(ac)) ** 0.5
+                pp = max(vals) - min(vals)
+                fr = _freq_estimate(vals, 1.0 / f.rate_hz)
+                ftxt = "     -  " if fr is None else f"{fr/1000:8.2f}k"
+                cells.append(f"{rms:8.4f} {pp:7.4f} {ftxt}")
+            stamp = _time.strftime("%H:%M:%S")
+            print(f"  {stamp}  {cells[0]}  | {cells[1]}", flush=True)
+            if end and _time.monotonic() > end:
+                break
+            _time.sleep(max(0.0, args.interval))
+    except KeyboardInterrupt:
+        pass
+    finally:
+        t.close()
+    return 0
+
+
 def cmd_record(args) -> int:
     from . import record as R
 
@@ -362,6 +402,18 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--plot", action="store_true",
                     help="matplotlib で表示（入っていれば）")
     sp.set_defaults(func=cmd_capture)
+
+    sp = sub.add_parser("monitor", help="数値をライブ表示（プローブ確認用）")
+    sp.add_argument("--rate", choices=sorted(C.SAMPLE_RATES), default="10M")
+    sp.add_argument("--ch1", choices=sorted(C.CH1_RANGES), default="200mV")
+    sp.add_argument("--ch2", choices=sorted(C.CH2_RANGES), default="200mV")
+    sp.add_argument("--ac1", action="store_true")
+    sp.add_argument("--ac2", action="store_true")
+    sp.add_argument("--samples", type=int, default=8192)
+    sp.add_argument("--skip", type=int, default=16)
+    sp.add_argument("--interval", type=float, default=0.3)
+    sp.add_argument("--seconds", type=float, default=0, help="0 で Ctrl+C まで続ける")
+    sp.set_defaults(func=cmd_monitor)
 
     sp = sub.add_parser("input-check",
                         help="入力に信号が来ているか調べる（レンジごとの AC 成分）")

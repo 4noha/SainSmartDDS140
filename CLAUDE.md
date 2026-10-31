@@ -71,8 +71,20 @@ macOS 実機での確認だけが残っている（デバイスは Windows 機�
 4. トリガ、ロジックアナライザ（`cmd 52/53`）、信号発生器（`cmd 99/112..125`）は未着手。
 5. 信号発生器モジュールが付いているか確認する（付いていれば実機検証に進める）。
 
-## 一次資料
+## 一次資料（ローカルに保全済み）
 
+**マニュアルと配布ソフトは `docs/manual/` と `vendor/` に保全してある**
+（`docs/sources.md` に出典・SHA-256、`tools/verify_archive.sh` で検証）。
+`vendor/` は Git 管理外なので消えると復元できない。
+
+- ハード/ソフトのマニュアル: `docs/manual/*.pdf`（秋月電子 g110159 で公開、原本は CD 同梱）
+- ベンダ CD 全体: `vendor/101-10-144.rar` + 展開済みの `vendor/CD/`
+- ベンダアプリは .NET。`vendor/CD/DDS140/DDS140.exe` を逆コンパイルすればコマンド列が読める。
+- `vendor/CD/Demo/VCSource/` に**ベンダ提供の VC ソース**がある（publicDLL の使い方）。
+
+## 外部の一次資料
+
+- 秋月電子 商品ページ（販売終了）: https://akizukidenshi.com/catalog/g/g110159/
 - sigrok: https://sigrok.org/wiki/SainSmart_DDS140
 - lsusb -v の生ログ: https://sigrok.org/wiki/SainSmart_DDS140/Info
 - 既存のリバースエンジニアリング: https://github.com/SamantazFox/dds140-reverse-engineering
