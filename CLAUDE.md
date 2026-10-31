@@ -15,6 +15,8 @@ macOS 実機での確認だけが残っている（デバイスは Windows 機�
 - 開始 `cmd 51` → 状態 `cmd 80` が **33** になったら読む。
 - 詳細と実測値は `docs/protocol.md`、割り方は `docs/reverse-engineering.md`。
 - 入口は CLI（`python3 -m dds140 capture`）とブラウザ UI（`python3 -m dds140 ui`）。
+  エージェント向けの要約は `skills/dds140-scope/SKILL.md`（`skills/install.sh` で
+  Claude/Codex に登録。**SKILL.md を直したら install.sh を流し直す**）。
   UI は標準ライブラリの HTTP サーバ + canvas。USB に触るのはワーカースレッド 1 本だけ。
 - フレーム先頭 2〜10 サンプルは整定で跳ねる（実測）。既定で `skip=16` で捨てる。
 - **読み出し長は 32 KiB の倍数にする**。半端な長さは `libusb: Overflow` になる（実測）。

@@ -120,6 +120,20 @@ matplotlib ウィンドウ（`--plot`）。
 **注意**: 各フレームの先頭 2〜10 サンプルは ADC/マルチプレクサの整定で跳ねる
 （無入力でも 0.5〜7V 相当まで振れる）。`--skip 16` を付けると消える。
 
+## スキル（Claude Code / Codex）
+
+このツールの使い方と「数字を間違えないための注意」をスキルにしてある。
+エージェントに「オシロで見て」と言えば、勝手に読み込んで正しい手順で測る。
+
+```sh
+skills/install.sh          # ~/.claude/skills と ~/.codex/skills に登録
+skills/install.sh --check  # 中身が揃っているか確認
+skills/install.sh --remove # 解除
+```
+
+- Claude Code へは symlink（このリポジトリが正典）
+- Codex へはコピー（`SKILL.md` を直したら `install.sh` を流し直す）
+
 ## 中身
 
 | パス | 内容 |
@@ -133,6 +147,7 @@ matplotlib ウィンドウ（`--plot`）。
 | `dds140/web/` | UI の HTML / CSS / JS（canvas 描画） |
 | `dds140/selftest.py` | 実機でレート・レンジを一通り試す（開発用） |
 | `docs/sources.md` | **マニュアル・配布ソフトの保全記録**（出典・ハッシュ） |
+| `skills/dds140-scope/` | エージェント向けスキル（使い方と罠の要約） |
 | `docs/manual-notes.md` | マニュアルの要点（仕様・レンジ別ノイズ・記録機能。原本は再配布しない） |
 | `docs/protocol.md` | **プロトコルの全容（実測ベース）** |
 | `docs/recording.md` | 記録の実測上限と落とし穴 |
