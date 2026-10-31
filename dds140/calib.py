@@ -113,5 +113,8 @@ def rate_for(label: str, label_hz: float, cal: dict | None = None) -> float:
         cal = load()
     entry = cal.get(label)
     if entry and entry.get("rate_hz"):
-        return float(entry["rate_hz"])
+        ratio = float(entry.get("ratio") or 0)
+        # 極端な比率は測定失敗（エイリアス等）とみなして使わない
+        if 2.0 <= ratio <= 40.0:
+            return float(entry["rate_hz"])
     return label_hz
