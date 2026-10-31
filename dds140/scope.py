@@ -140,7 +140,21 @@ class Scope:
             cal.raw[idx] = self.t.cmd(C.CMD_CAL, idx)
             self._log(f"  cal[{idx:2d}] {C.CAL_ITEMS[idx]:16s} = {cal.raw[idx]:3d}")
         self.cal = cal
+        self._apply_range_trims()
         return cal
+
+    def _apply_range_trims(self) -> None:
+        """DDS140_VCAL=1 のとき、保存済みのレンジ補正をキャリブレーションに掛ける。"""
+        import os
+        if os.environ.get("DDS140_VCAL") != "1":
+            return
+        try:
+            from .calib import apply_trims, load_ranges
+            n = apply_trims(self.cal, load_ranges().get("trims") or {})
+            if n and self.verbose:
+                print(f"  レンジ補正を適用（{n} 項目）")
+        except Exception:
+            pass
 
     # ----------------------------------------------------------------- configure
     def configure(self, rate: str = "100M", ch1_range: str = "1V",

@@ -21,6 +21,7 @@ from .scope import Scope
 REFERENCE_HZ = 1000.0          # 内蔵標準矩形波（仕様書 §4.2）
 MIN_TRUSTED_PERIOD = 8.0       # これ未満の周期はエイリアスとみなして捨てる
 CONF_PATH = Path.home() / ".dds140" / "rates.json"
+RANGE_CONF = Path.home() / ".dds140" / "ranges.json"
 
 
 def _runs(codes: list[int], lo: int = 60, hi: int = 200) -> list[int]:
@@ -123,3 +124,106 @@ def rate_for(label: str, label_hz: float, cal: dict | None = None) -> float:
         if period >= MIN_TRUSTED_PERIOD:
             return float(entry["rate_hz"])
     return label_hz
+
+
+# ---------------------------------------------------------------- 垂直（レンジ）
+# 内蔵 1 kHz 矩形波の振幅を基準に、レンジごとの表示電圧を校正する。
+# マニュアルの「約 1.5V」は不確かなので、既定では相対比較だけ行い、
+# --reference-pp を指定したときだけ絶対値を合わせる。
+
+RANGE_NAMES = ("2V", "1V", "500mV", "200mV", "100mV", "50mV")
+
+
+def measure_pp(scope: Scope, rng: str, rate: str = "100M",
+               samples: int = 16384):
+    """CH1 の 1 レンジで矩形波の pp を測る。振り切れていたら None。"""
+    scope.configure(rate=rate, ch1_range=rng, ch2_range="1V")
+    frame = scope.capture(total_bytes=samples * 2, poll_timeout=25.0, skip=16)
+    codes = list(frame.ch1_codes)
+    lo, hi = min(codes), max(codes)
+    v = frame.ch1_volts()
+    vpp = max(v) - min(v)
+    return {
+        "range": rng,
+        "code_lo": lo,
+        "code_hi": hi,
+        "pp_codes": hi - lo,
+        "vpp": vpp,
+        "v_per_lsb": (vpp / (hi - lo)) if hi > lo else None,
+        "railed": hi >= 250 or lo <= 5,
+        "gain_index": C.CH1_RANGES[rng].cal_scale,
+        "nominal_div": C.CH1_RANGES[rng].div,
+    }
+
+
+def calibrate_ranges(scope: Scope, reference_pp: float | None = None,
+                     verbose: bool = True) -> dict:
+    rows = {}
+    for rng in RANGE_NAMES:
+        m = measure_pp(scope, rng)
+        rows[rng] = m
+        if verbose:
+            if m["railed"]:
+                print(f"  {rng:6s}: 振り切れ（{m['code_lo']}..{m['code_hi']}）"
+                      f" → 小さい信号で測る必要あり。表示 {m['vpp']:.3f} V")
+            else:
+                print(f"  {rng:6s}: {m['pp_codes']:3d} LSB, 表示 {m['vpp']:.3f} V "
+                      f"(V/LSB {m['v_per_lsb']:.5f})")
+
+    usable = [r for r in rows.values() if not r["railed"] and r["pp_codes"] > 20]
+    out = {"rows": rows, "reference_pp": reference_pp, "trims": {}}
+    if not usable:
+        return out
+
+    # レンジ間の一貫性: 同じ 1 本の信号なので Vpp は同じはず
+    vpps = [r["vpp"] for r in usable]
+    mean_vpp = sum(vpps) / len(vpps)
+    out["mean_vpp"] = mean_vpp
+    out["spread_pct"] = (max(vpps) - min(vpps)) / mean_vpp * 100 if mean_vpp else 0.0
+    if verbose:
+        print(f"  → 使用可能 {len(usable)} レンジ, 平均 {mean_vpp:.3f} Vpp, "
+              f"ばらつき {out['spread_pct']:.1f}%")
+
+    if reference_pp:
+        # ゲイン項目（cal_scale）ごとに補正係数をまとめる
+        by_index: dict[int, list[float]] = {}
+        for r in usable:
+            by_index.setdefault(r["gain_index"], []).append(reference_pp / r["vpp"])
+        trims = {}
+        for idx, factors in by_index.items():
+            f = sum(factors) / len(factors)
+            trims[str(idx)] = round(f, 5)
+            if verbose:
+                print(f"     cal#{idx} の補正係数 ×{f:.4f} "
+                      f"（{reference_pp} V を基準）")
+        out["trims"] = trims
+    return out
+
+
+def save_ranges(data: dict, path: Path = RANGE_CONF) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, indent=2, ensure_ascii=False))
+    return path
+
+
+def load_ranges(path: Path = RANGE_CONF) -> dict:
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text())
+    except (OSError, ValueError):
+        return {}
+
+
+def apply_trims(cal, trims: dict) -> int:
+    """補正係数を Calibration の生値に掛ける（表示電圧が変わる）。"""
+    n = 0
+    for key, factor in (trims or {}).items():
+        try:
+            idx = int(key)
+        except ValueError:
+            continue
+        if idx in cal.raw and factor:
+            cal.raw[idx] = cal.raw[idx] * float(factor)
+            n += 1
+    return n

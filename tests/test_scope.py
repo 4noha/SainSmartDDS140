@@ -50,6 +50,37 @@ class CombinedModeTest(unittest.TestCase):
         self.assertEqual(f.samples, 2)
 
 
+class RangeTrimTest(unittest.TestCase):
+    def test_apply_trims_scales_gain_values(self):
+        import tempfile
+        from pathlib import Path
+        from dds140.calib import apply_trims, load_ranges, save_ranges
+
+        cal = Calibration(raw={3: 164, 8: 122, 6: 174})
+        n = apply_trims(cal, {"3": 0.875, "8": 0.909})
+        self.assertEqual(n, 2)
+        self.assertAlmostEqual(cal.raw[3], 143.5)
+        self.assertAlmostEqual(cal.raw[8], 110.898)
+        self.assertEqual(cal.raw[6], 174)          # 触っていない項目はそのまま
+
+    def test_apply_trims_ignores_junk(self):
+        from dds140.calib import apply_trims
+        cal = Calibration(raw={3: 164})
+        self.assertEqual(apply_trims(cal, {"x": 2.0, "99": 0.5}), 0)
+
+    def test_save_and_load_round_trip(self):
+        import tempfile
+        from pathlib import Path
+        from dds140.calib import load_ranges, save_ranges
+
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "r.json"
+            data = {"reference_pp": 1.5, "trims": {"3": 0.875}}
+            save_ranges(data, path)
+            self.assertEqual(load_ranges(path), data)
+            self.assertEqual(load_ranges(Path(d) / "missing.json"), {})
+
+
 class FrameTest(unittest.TestCase):
     def setUp(self):
         self.cal = Calibration(raw={1: 117, 2: 120, 3: 164, 4: 160, 5: 125})

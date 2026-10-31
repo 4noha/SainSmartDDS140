@@ -346,6 +346,42 @@ def cmd_calib_rate(args) -> int:
     return 0
 
 
+def cmd_calib_range(args) -> int:
+    """内蔵 1kHz 矩形波でレンジ（垂直）を校正する。"""
+    from . import calib
+
+    if args.show:
+        data = calib.load_ranges()
+        if not data:
+            print(f"校正値がありません（{calib.RANGE_CONF}）")
+            return 1
+        print(f"基準 {data.get('reference_pp')} Vpp / 平均 {data.get('mean_vpp', 0):.3f} V / "
+              f"ばらつき {data.get('spread_pct', 0):.1f}%")
+        for name, row in (data.get("rows") or {}).items():
+            flag = "振り切れ" if row.get("railed") else f"{row.get('vpp', 0):.3f} V"
+            print(f"  {name:6s}: {row.get('pp_codes', 0):3d} LSB  {flag}")
+        for k, v in (data.get("trims") or {}).items():
+            print(f"  補正 cal#{k}: ×{v}")
+        return 0
+
+    t = Transport.open(timeout=args.timeout)
+    s = Scope(t, verbose=args.verbose)
+    try:
+        s.read_calibration()
+        print("内蔵 1kHz 矩形波（BNC 間の金属ピン）を CH1 に当てた状態で測定します")
+        ref = args.reference_pp or None
+        if not ref:
+            print("  ※ --reference-pp 未指定なので相対比較のみ（絶対値は合わせません）")
+        data = calib.calibrate_ranges(s, reference_pp=ref)
+    finally:
+        t.close()
+    path = calib.save_ranges(data)
+    print(f"保存: {path}")
+    if data.get("trims"):
+        print("  補正を使うには環境変数 DDS140_VCAL=1 を設定して実行してください")
+    return 0
+
+
 def cmd_monitor(args) -> int:
     """ターミナルで数値をライブ表示する（プローブの当たり確認用）。"""
     import time as _time
@@ -469,6 +505,12 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--reference", type=float, default=1000.0,
                     help="内蔵矩形波の周波数 [Hz]（既定 1000）")
     sp.set_defaults(func=cmd_calib_rate)
+
+    sp = sub.add_parser("calib-range", help="内蔵 1kHz 矩形波でレンジ（垂直）を校正")
+    sp.add_argument("--show", action="store_true", help="保存済みの値を表示")
+    sp.add_argument("--reference-pp", type=float, default=0.0,
+                    help="内蔵矩形波の振幅 [Vpp]。指定すると絶対値を合わせる（例 1.5）")
+    sp.set_defaults(func=cmd_calib_range)
 
     sp = sub.add_parser("spectrum", help="低周波のピークを調べる（ハム・校正用）")
     sp.add_argument("--rate", choices=sorted(C.SAMPLE_RATES), default="240k")

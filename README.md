@@ -46,6 +46,10 @@ python3 -m dds140 spectrum --f-lo 800 --f-hi 1200   # 1kHz の矩形波を狙い
 ```sh
 python3 -m dds140 calib-rate     # プローブを内蔵矩形波に当てて実行
 python3 -m dds140 calib-rate --show
+
+# 垂直（レンジ）の校正。絶対値を合わせたいときは基準振幅を指定
+python3 -m dds140 calib-range --reference-pp 1.5
+DDS140_VCAL=1 python3 -m dds140 capture --samples 8192   # 補正を有効にして測定
 ```
 
 実測では実効レートはラベルの 1/22〜1/28 で、**100M 設定（実効 3.58 MS/s）だけが
