@@ -129,9 +129,70 @@ def cmd_capture(args) -> int:
             fh.write(f.raw)
         print(f"  -> {args.raw} (生バイト, 交互配置)")
 
+    if args.svg:
+        _write_svg(args.svg, f, ch1, ch2)
+        print(f"  -> {args.svg} (SVG)")
+
     if args.plot:
         _plot(f, ch1, ch2)
     return 0
+
+
+def _write_svg(path: str, f: Frame, ch1: bool, ch2: bool, width: int = 1000,
+               height: int = 400) -> None:
+    """依存なしで波形を SVG にする（matplotlib が無い環境用）。"""
+    pad = 40
+    w = width - pad * 2
+    h = height - pad * 2
+    series = []
+    if ch1:
+        series.append(("CH1", "#1f77b4", f.ch1_volts()))
+    if ch2:
+        series.append(("CH2", "#d62728", f.ch2_volts()))
+    if not series:
+        return
+    lo = min(min(v) for _, _, v in series)
+    hi = max(max(v) for _, _, v in series)
+    if hi - lo < 1e-12:
+        hi, lo = lo + 1.0, lo - 1.0
+    span = hi - lo
+    n = len(series[0][2])
+    step = max(1, n // 2000)
+
+    def x(i):
+        return pad + w * i / max(1, n - 1)
+
+    def y(v):
+        return pad + h * (hi - v) / span
+
+    out = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
+           f'viewBox="0 0 {width} {height}">',
+           f'<rect width="{width}" height="{height}" fill="#ffffff"/>']
+    for k in range(11):
+        gx = pad + w * k / 10
+        gy = pad + h * k / 10
+        out.append(f'<line x1="{gx:.1f}" y1="{pad}" x2="{gx:.1f}" y2="{pad + h}" '
+                   f'stroke="#e6e6e6" stroke-width="1"/>')
+        out.append(f'<line x1="{pad}" y1="{gy:.1f}" x2="{pad + w}" y2="{gy:.1f}" '
+                   f'stroke="#e6e6e6" stroke-width="1"/>')
+    out.append(f'<rect x="{pad}" y="{pad}" width="{w}" height="{h}" fill="none" '
+               f'stroke="#888" stroke-width="1"/>')
+    for name, color, vals in series:
+        pts = " ".join(f"{x(i):.1f},{y(vals[i]):.1f}" for i in range(0, n, step))
+        out.append(f'<polyline fill="none" stroke="{color}" stroke-width="1.2" '
+                   f'points="{pts}"/>')
+    dt = 1.0 / f.rate_hz
+    out.append(f'<text x="{pad}" y="{pad - 12}" font-family="monospace" font-size="12">'
+               f'DDS140  {n} samples  {f.rate_hz/1e6:g} MS/s  '
+               f'{dt*1e6:.4g} us/sample  span {dt*n*1e6:.4g} us</text>')
+    out.append(f'<text x="{pad}" y="{height - 12}" font-family="monospace" '
+               f'font-size="12">{lo:+.3f} V .. {hi:+.3f} V</text>')
+    for k, (name, color, _) in enumerate(series):
+        out.append(f'<text x="{pad + 8 + k * 60}" y="{pad + 16}" '
+                   f'font-family="monospace" font-size="13" fill="{color}">{name}</text>')
+    out.append('</svg>')
+    with open(path, "w") as fh:
+        fh.write("\n".join(out) + "\n")
 
 
 def _plot(f: Frame, ch1: bool, ch2: bool) -> None:
@@ -189,7 +250,9 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--raw", help="生バイト出力先（CH1,CH2 交互）")
     sp.add_argument("--skip", type=int, default=0,
                     help="フレーム先頭の捨てサンプル数。実測では先頭 ~10 個が整定で跳ねる")
-    sp.add_argument("--plot", action="store_true", help="matplotlib で表示")
+    sp.add_argument("--svg", help="SVG で波形を書き出す（依存なし）")
+    sp.add_argument("--plot", action="store_true",
+                    help="matplotlib で表示（入っていれば）")
     sp.set_defaults(func=cmd_capture)
     return p
 

@@ -21,7 +21,10 @@ python3 -m dds140 cal
 # 1 フレーム取って統計 + CSV
 python3 -m dds140 capture --samples 65536 -o wave.csv
 
-# プロット（matplotlib がある場合）
+# 波形を SVG に（依存なし）
+python3 -m dds140 capture --samples 65536 --skip 16 --svg wave.svg
+
+# matplotlib がある場合は画面表示も
 python3 -m dds140 capture --samples 65536 --plot
 
 # レンジとレートを指定（先頭 16 サンプルは整定で跳ねるので捨てる）
@@ -45,8 +48,11 @@ libusb の場所を明示したいときは `DDS140_LIBUSB=/path/to/libusb-1.0.d
 | ロジックアナライザ（8ch） | ⬜ 未着手 |
 | 信号発生器 | ⬜ コマンドは判明、未実装 |
 
-出力: CSV（`time_s,ch1_v,ch2_v`）、生バイト（`--raw`）、
+出力: CSV（`time_s,ch1_v,ch2_v`）、生バイト（`--raw`）、SVG（`--svg`、依存なし）、
 matplotlib ウィンドウ（`--plot`）。
+
+**注意**: 各フレームの先頭 2〜10 サンプルは ADC/マルチプレクサの整定で跳ねる
+（無入力でも 0.5〜7V 相当まで振れる）。`--skip 16` を付けると消える。
 
 ## 中身
 
