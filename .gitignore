@@ -1,0 +1,18 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+
+# USB キャプチャ（測定対象の波形が入りうる）
+captures/*
+!captures/.gitkeep
+
+# 秘密
+secrets/*
+!secrets/.gitkeep
+
+# エージェントのローカル設定
+.claude/settings.local.json
+.codex/
